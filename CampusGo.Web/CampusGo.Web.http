@@ -1,0 +1,6 @@
+@CampusGo.Web_HostAddress = http://localhost:5055
+
+GET {{CampusGo.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
