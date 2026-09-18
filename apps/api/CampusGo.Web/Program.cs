@@ -75,6 +75,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<ImageUploadService>();
+builder.Services.AddScoped<NotificationService>();
 
 var app = builder.Build();
 

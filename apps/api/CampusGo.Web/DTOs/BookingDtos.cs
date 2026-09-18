@@ -5,7 +5,6 @@ namespace CampusGo.Web.DTOs;
 
 public record CreateBookingDto(
     [Required] Guid TripId,
-    [Required] Guid RiderId,
     [Required, Range(-90, 90)] double PickupLatitude,
     [Required, Range(-180, 180)] double PickupLongitude,
     [Required, MaxLength(200)] string PickupLabel,

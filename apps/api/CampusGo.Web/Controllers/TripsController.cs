@@ -1,5 +1,6 @@
 using CampusGo.Web.Data;
 using CampusGo.Web.DTOs;
+using CampusGo.Web.Helpers;
 using CampusGo.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +50,8 @@ public class TripsController(AppDbContext db) : ControllerBase
     [HttpPost("Trips")]
     public async Task<ActionResult<TripDto>> Create(CreateTripDto dto)
     {
-        var driver = await db.Users.FindAsync(dto.DriverId);
+        var driverId = User.GetUserId();
+        var driver = await db.Users.FindAsync(driverId);
         if (driver is null || driver.Role == UserRole.Rider)
         {
             return BadRequest(new { message = "Only users registered as drivers can create trips." });
@@ -61,7 +63,7 @@ public class TripsController(AppDbContext db) : ControllerBase
             return NotFound(new { message = "No vehicle found with the given VehicleId." });
         }
 
-        if (vehicle.UserId != dto.DriverId)
+        if (vehicle.UserId != driverId)
         {
             return BadRequest(new { message = "This vehicle does not belong to the specified driver." });
         }
@@ -73,7 +75,7 @@ public class TripsController(AppDbContext db) : ControllerBase
 
         var trip = new Trip
         {
-            DriverId = dto.DriverId,
+            DriverId = driverId,
             VehicleId = dto.VehicleId,
             Origin = dto.Origin,
             Destination = dto.Destination,
@@ -101,6 +103,11 @@ public class TripsController(AppDbContext db) : ControllerBase
         var trip = await db.Trips.FindAsync(tripId);
         if (trip is null) return NotFound();
 
+        if (trip.DriverId != User.GetUserId())
+        {
+            return Forbid();
+        }
+
         var vehicle = await db.Vehicles.FindAsync(trip.VehicleId);
         if (vehicle is not null && dto.AvailableSeats > vehicle.Capacity)
         {
@@ -124,6 +131,11 @@ public class TripsController(AppDbContext db) : ControllerBase
     {
         var trip = await db.Trips.FindAsync(tripId);
         if (trip is null) return NotFound();
+
+        if (trip.DriverId != User.GetUserId())
+        {
+            return Forbid();
+        }
 
         var hasActiveBookings = await db.Bookings
             .AnyAsync(b => b.TripId == tripId && b.Status == BookingStatus.Confirmed);
