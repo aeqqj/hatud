@@ -4,7 +4,6 @@ using CampusGo.Web.Models;
 namespace CampusGo.Web.DTOs;
 
 public record CreateTripDto(
-    [Required] Guid DriverId,
     [Required] Guid VehicleId,
     [Required, MaxLength(200)] string Origin,
     [Required, MaxLength(200)] string Destination,

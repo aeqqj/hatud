@@ -1,5 +1,6 @@
 using CampusGo.Web.Data;
 using CampusGo.Web.DTOs;
+using CampusGo.Web.Helpers;
 using CampusGo.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,11 @@ public class ChatController(AppDbContext db) : ControllerBase
     [HttpGet("Trips/{tripId}/chatroom")]
     public async Task<ActionResult<ChatRoomDto>> GetByTrip(Guid tripId)
     {
+        if (!await IsRoomMember(tripId, User.GetUserId()))
+        {
+            return Forbid();
+        }
+
         var room = await db.ChatRooms.FirstOrDefaultAsync(c => c.TripId == tripId);
         if (room is null) return NotFound();
 
@@ -28,6 +34,11 @@ public class ChatController(AppDbContext db) : ControllerBase
         var room = await db.ChatRooms.FindAsync(chatRoomId);
         if (room is null) return NotFound();
 
+        if (!await IsRoomMember(room.TripId, User.GetUserId()))
+        {
+            return Forbid();
+        }
+
         var messages = await db.Messages
             .Where(m => m.ChatRoomId == chatRoomId)
             .OrderBy(m => m.SentAt)
@@ -39,19 +50,12 @@ public class ChatController(AppDbContext db) : ControllerBase
     [HttpPost("ChatRooms/{chatRoomId}/messages")]
     public async Task<ActionResult<MessageDto>> PostMessage(Guid chatRoomId, CreateMessageDto dto)
     {
+        var senderId = User.GetUserId();
+
         var room = await db.ChatRooms.FindAsync(chatRoomId);
         if (room is null) return NotFound(new { message = "No chatroom found with the given ChatRoomId." });
 
-        var trip = await db.Trips.FindAsync(room.TripId);
-        if (trip is null) return NotFound(new { message = "Associated trip not found." });
-
-        var isDriver = dto.SenderId == trip.DriverId;
-        var isConfirmedRider = await db.Bookings.AnyAsync(b =>
-            b.TripId == room.TripId &&
-            b.RiderId == dto.SenderId &&
-            b.Status == BookingStatus.Confirmed);
-
-        if (!isDriver && !isConfirmedRider)
+        if (!await IsRoomMember(room.TripId, senderId))
         {
             return Forbid();
         }
@@ -59,7 +63,7 @@ public class ChatController(AppDbContext db) : ControllerBase
         var message = new Message
         {
             ChatRoomId = chatRoomId,
-            SenderId = dto.SenderId,
+            SenderId = senderId,
             Content = dto.Content,
             SentAt = DateTime.UtcNow
         };
@@ -68,5 +72,16 @@ public class ChatController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetMessages), new { chatRoomId }, ToMessageDto(message));
+    }
+
+    private async Task<bool> IsRoomMember(Guid tripId, Guid userId)
+    {
+        var trip = await db.Trips.FindAsync(tripId);
+        if (trip is null) return false;
+
+        if (trip.DriverId == userId) return true;
+
+        return await db.Bookings.AnyAsync(b =>
+            b.TripId == tripId && b.RiderId == userId && b.Status == BookingStatus.Confirmed);
     }
 }

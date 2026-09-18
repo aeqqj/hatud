@@ -1,5 +1,6 @@
 using CampusGo.Web.Data;
 using CampusGo.Web.DTOs;
+using CampusGo.Web.Helpers;
 using CampusGo.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,8 @@ public class RatingsController(AppDbContext db) : ControllerBase
     [HttpPost("Ratings")]
     public async Task<ActionResult<RatingDto>> Create(CreateRatingDto dto)
     {
+        var raterId = User.GetUserId();
+
         var booking = await db.Bookings.FindAsync(dto.BookingId);
         if (booking is null) return NotFound(new { message = "No booking found with the given BookingId." });
 
@@ -42,21 +45,21 @@ public class RatingsController(AppDbContext db) : ControllerBase
         if (trip is null) return NotFound(new { message = "Associated trip not found." });
 
         Guid rateeId;
-        if (dto.RaterId == booking.RiderId)
+        if (raterId == booking.RiderId)
         {
             rateeId = trip.DriverId;
         }
-        else if (dto.RaterId == trip.DriverId)
+        else if (raterId == trip.DriverId)
         {
             rateeId = booking.RiderId;
         }
         else
         {
-            return BadRequest(new { message = "RaterId must be either the rider or driver on this booking." });
+            return Forbid();
         }
 
         var alreadyRated = await db.Ratings.AnyAsync(r =>
-            r.BookingId == dto.BookingId && r.RaterId == dto.RaterId);
+            r.BookingId == dto.BookingId && r.RaterId == raterId);
 
         if (alreadyRated)
         {
@@ -66,7 +69,7 @@ public class RatingsController(AppDbContext db) : ControllerBase
         var rating = new Rating
         {
             BookingId = dto.BookingId,
-            RaterId = dto.RaterId,
+            RaterId = raterId,
             RateeId = rateeId,
             Score = dto.Score,
             Comment = dto.Comment ?? string.Empty,

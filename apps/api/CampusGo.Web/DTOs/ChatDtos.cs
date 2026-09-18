@@ -9,7 +9,6 @@ public record ChatRoomDto(
 );
 
 public record CreateMessageDto(
-    [Required] Guid SenderId,
     [Required, MaxLength(1000)] string Content
 );
 

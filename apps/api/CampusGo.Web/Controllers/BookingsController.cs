@@ -1,6 +1,8 @@
 using CampusGo.Web.Data;
 using CampusGo.Web.DTOs;
+using CampusGo.Web.Helpers;
 using CampusGo.Web.Models;
+using CampusGo.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
@@ -9,7 +11,7 @@ namespace CampusGo.Web.Controllers;
 
 [ApiController]
 [Route("api")]
-public class BookingsController(AppDbContext db) : ControllerBase
+public class BookingsController(AppDbContext db, NotificationService notifications) : ControllerBase
 {
     private static readonly GeometryFactory GeometryFactory =
         NetTopologySuite.NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
@@ -47,6 +49,8 @@ public class BookingsController(AppDbContext db) : ControllerBase
     [HttpPost("Bookings")]
     public async Task<ActionResult<BookingDto>> Create(CreateBookingDto dto)
     {
+        var riderId = User.GetUserId();
+
         var trip = await db.Trips.FindAsync(dto.TripId);
         if (trip is null) return NotFound(new { message = "No trip found with the given TripId." });
 
@@ -60,17 +64,14 @@ public class BookingsController(AppDbContext db) : ControllerBase
             return Conflict(new { message = "No available seats on this trip." });
         }
 
-        var rider = await db.Users.FindAsync(dto.RiderId);
-        if (rider is null) return NotFound(new { message = "No user found with the given RiderId." });
-
-        if (dto.RiderId == trip.DriverId)
+        if (riderId == trip.DriverId)
         {
             return BadRequest(new { message = "A driver cannot book their own trip." });
         }
 
         var alreadyBooked = await db.Bookings.AnyAsync(b =>
             b.TripId == dto.TripId &&
-            b.RiderId == dto.RiderId &&
+            b.RiderId == riderId &&
             b.Status != BookingStatus.Cancelled &&
             b.Status != BookingStatus.Rejected);
 
@@ -82,7 +83,7 @@ public class BookingsController(AppDbContext db) : ControllerBase
         var booking = new Booking
         {
             TripId = dto.TripId,
-            RiderId = dto.RiderId,
+            RiderId = riderId,
             PickupPoint = GeometryFactory.CreatePoint(new Coordinate(dto.PickupLongitude, dto.PickupLatitude)),
             PickupLabel = dto.PickupLabel,
             DropoffPoint = GeometryFactory.CreatePoint(new Coordinate(dto.DropoffLongitude, dto.DropoffLatitude)),
@@ -100,6 +101,11 @@ public class BookingsController(AppDbContext db) : ControllerBase
         db.Bookings.Add(booking);
         await db.SaveChangesAsync();
 
+        await notifications.NotifyAsync(
+            trip.DriverId,
+            $"New booking request from a rider on your {trip.Origin} → {trip.Destination} trip.",
+            NotificationType.BookingRequested);
+
         return CreatedAtAction(nameof(GetById), new { bookingId = booking.BookingId }, ToDto(booking));
     }
 
@@ -110,6 +116,22 @@ public class BookingsController(AppDbContext db) : ControllerBase
         if (booking is null) return NotFound();
 
         var trip = await db.Trips.FindAsync(booking.TripId);
+        if (trip is null) return NotFound();   // add this if it's missing
+
+        var callerId = User.GetUserId();
+        var isDriver = trip.DriverId == callerId;
+        var isRider = booking.RiderId == callerId;
+
+        if (!isDriver && !isRider)
+        {
+            return Forbid();
+        }
+
+        var driverOnlyStatuses = new[] { BookingStatus.Confirmed, BookingStatus.Rejected };
+        if (driverOnlyStatuses.Contains(dto.Status) && !isDriver)
+        {
+            return Forbid();
+        }
 
         var releasesSeat =
             (dto.Status == BookingStatus.Rejected || dto.Status == BookingStatus.Cancelled) &&
@@ -117,7 +139,7 @@ public class BookingsController(AppDbContext db) : ControllerBase
 
         booking.Status = dto.Status;
 
-        if (releasesSeat && trip is not null)
+        if (releasesSeat)
         {
             trip.AvailableSeats += 1;
             if (trip.Status == TripStatus.Full)
@@ -127,6 +149,23 @@ public class BookingsController(AppDbContext db) : ControllerBase
         }
 
         await db.SaveChangesAsync();
+
+        var notifyType = dto.Status switch
+        {
+            BookingStatus.Confirmed => NotificationType.BookingConfirmed,
+            BookingStatus.Rejected => NotificationType.BookingRejected,
+            BookingStatus.Cancelled => NotificationType.BookingCancelled,
+            _ => (NotificationType?)null
+        };
+
+        if (notifyType is not null)
+        {
+            var recipientId = callerId == trip.DriverId ? booking.RiderId : trip.DriverId;
+            await notifications.NotifyAsync(
+                recipientId,
+                $"Your booking status changed to {dto.Status}.",
+                notifyType.Value);
+        }
 
         return Ok(ToDto(booking));
     }
