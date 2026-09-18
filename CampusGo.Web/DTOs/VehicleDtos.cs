@@ -5,12 +5,14 @@ namespace CampusGo.Web.DTOs;
 
 public record CreateVehicleDto(
     [Required] Guid UserId,
+    [Required] VehicleType Type,
     [Required, MaxLength(20)] string PlateNumber,
     [Required, MaxLength(100)] string Model,
     [Required, Range(1, 20)] int Capacity
 );
 
 public record UpdateVehicleDto(
+    [Required] VehicleType Type,
     [Required, MaxLength(20)] string PlateNumber,
     [Required, MaxLength(100)] string Model,
     [Required, Range(1, 20)] int Capacity
@@ -19,6 +21,7 @@ public record UpdateVehicleDto(
 public record VehicleDto(
     Guid VehicleId,
     Guid UserId,
+    VehicleType Type,
     string PlateNumber,
     string Model,
     int Capacity

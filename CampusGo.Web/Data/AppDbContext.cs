@@ -10,6 +10,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Trip> Trips => Set<Trip>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Rating> Ratings => Set<Rating>();
+    public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
+    public DbSet<Message> Messages => Set<Message>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Notification> Notifications => Set<Notification>();
 
@@ -32,6 +34,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             entity.HasKey(v => v.VehicleId);
             entity.HasIndex(v => v.PlateNumber).IsUnique(); // Make sure that plate numbers do not repeat
+            entity.Property(v => v.Type).HasConversion<string>();
             entity.HasOne(v => v.Owner)
                 .WithMany(u => u.Vehicles)
                 .HasForeignKey(v => v.UserId);
@@ -84,6 +87,28 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(r => r.Ratee)
                 .WithMany()
                 .HasForeignKey(r => r.RateeId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ChatRoom
+        modelBuilder.Entity<ChatRoom>(entity =>
+        {
+            entity.HasKey(c => c.ChatRoomId);
+            entity.HasOne(c => c.Trip)
+                .WithOne(t => t.ChatRoom)
+                .HasForeignKey<ChatRoom>(c => c.TripId);
+        });
+
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.HasKey(m => m.MessageId);
+            entity.HasOne(m => m.ChatRoom)
+                .WithMany(c => c.Messages)
+                .HasForeignKey(m => m.ChatRoomId);
+
+            entity.HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

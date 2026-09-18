@@ -16,6 +16,7 @@ public class Trip
     public Guid VehicleId { get; set; }
     public User? Driver { get; set; }
     public Vehicle? Vehicle { get; set; }
+    public ChatRoom? ChatRoom { get; set; }
     public string Origin { get; set; } = string.Empty;
     public string Destination { get; set; } = string.Empty;
     public DateTime DepartureTime { get; set; } // specific date + time, not just TimeOnly

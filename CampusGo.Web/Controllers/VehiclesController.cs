@@ -15,7 +15,7 @@ public class VehiclesController(AppDbContext db) : ControllerBase
     public async Task<ActionResult<IEnumerable<VehicleDto>>> GetAll()
     {
         var vehicles = await db.Vehicles
-            .Select(v => new VehicleDto(v.VehicleId, v.UserId, v.PlateNumber, v.Model, v.Capacity))
+            .Select(v => new VehicleDto(v.VehicleId, v.UserId, v.Type, v.PlateNumber, v.Model, v.Capacity))
             .ToListAsync();
 
         return Ok(vehicles);
@@ -27,7 +27,7 @@ public class VehiclesController(AppDbContext db) : ControllerBase
         var vehicle = await db.Vehicles.FindAsync(vehicleId);
         if (vehicle is null) return NotFound();
 
-        return Ok(new VehicleDto(vehicle.VehicleId, vehicle.UserId, vehicle.PlateNumber, vehicle.Model, vehicle.Capacity));
+        return Ok(new VehicleDto(vehicle.VehicleId, vehicle.UserId, vehicle.Type, vehicle.PlateNumber, vehicle.Model, vehicle.Capacity));
     }
 
     [HttpGet("Users/{userId}/vehicles")]
@@ -35,7 +35,7 @@ public class VehiclesController(AppDbContext db) : ControllerBase
     {
         var vehicles = await db.Vehicles
             .Where(v => v.UserId == userId)
-            .Select(v => new VehicleDto(v.VehicleId, v.UserId, v.PlateNumber, v.Model, v.Capacity))
+            .Select(v => new VehicleDto(v.VehicleId, v.UserId, v.Type, v.PlateNumber, v.Model, v.Capacity))
             .ToListAsync();
 
         return Ok(vehicles);
@@ -50,9 +50,15 @@ public class VehiclesController(AppDbContext db) : ControllerBase
             return NotFound(new { message = "No user found with the given UserId." });
         }
 
+        if (dto.Type == VehicleType.Motorcycle && dto.Capacity > 1)
+        {
+            return BadRequest(new { message = "A motorcyle vehicle type cannot have more than 1 available seat." });
+        }
+
         var vehicle = new Vehicle
         {
             UserId = dto.UserId,
+            Type = dto.Type,
             PlateNumber = dto.PlateNumber,
             Model = dto.Model,
             Capacity = dto.Capacity
@@ -69,7 +75,7 @@ public class VehiclesController(AppDbContext db) : ControllerBase
             return Conflict(new { message = "A vehicle with this plate number already exists." });
         }
 
-        var result = new VehicleDto(vehicle.VehicleId, vehicle.UserId, vehicle.PlateNumber, vehicle.Model, vehicle.Capacity);
+        var result = new VehicleDto(vehicle.VehicleId, vehicle.UserId, vehicle.Type, vehicle.PlateNumber, vehicle.Model, vehicle.Capacity);
         return CreatedAtAction(nameof(GetById), new { vehicleId = vehicle.VehicleId }, result);
     }
 
@@ -79,9 +85,14 @@ public class VehiclesController(AppDbContext db) : ControllerBase
         var vehicle = await db.Vehicles.FindAsync(vehicleId);
         if (vehicle is null) return NotFound();
 
+        vehicle.Type = dto.Type;
         vehicle.PlateNumber = dto.PlateNumber;
         vehicle.Model = dto.Model;
-        vehicle.Capacity = dto.Capacity;
+
+        if (dto.Type == VehicleType.Motorcycle && dto.Capacity > 1)
+        {
+            return BadRequest(new { message = "A motorcyle vehicle type cannot have more than 1 available seats." });
+        }
 
         try
         {
@@ -92,7 +103,7 @@ public class VehiclesController(AppDbContext db) : ControllerBase
             return Conflict(new { message = "A vehicle with this plate number already exists." });
         }
 
-        return Ok(new VehicleDto(vehicle.VehicleId, vehicle.UserId, vehicle.PlateNumber, vehicle.Model, vehicle.Capacity));
+        return Ok(new VehicleDto(vehicle.VehicleId, vehicle.UserId, vehicle.Type, vehicle.PlateNumber, vehicle.Model, vehicle.Capacity));
     }
 
     [HttpDelete("Vehicles/{vehicleId}")]

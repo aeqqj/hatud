@@ -84,6 +84,11 @@ public class TripsController(AppDbContext db) : ControllerBase
         };
 
         db.Trips.Add(trip);
+
+        // Instantiate a new room everytime a trip is created.
+        var chatRoom = new ChatRoom { TripId = trip.TripId };
+        db.ChatRooms.Add(chatRoom);
+
         await db.SaveChangesAsync();
 
         var result = new TripDto(trip.TripId, trip.DriverId, trip.VehicleId, trip.Origin, trip.Destination, trip.DepartureTime, trip.Fare, trip.AvailableSeats, trip.Status);
