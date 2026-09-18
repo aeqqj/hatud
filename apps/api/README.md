@@ -135,6 +135,12 @@ dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
 3. Reads the claims baked into it — remember AuthController.GenerateToken embedded ClaimTypes.NameIdentifier, ClaimTypes.Email, and ClaimTypes.Role
 4. Populates ControllerBase.User with a ClaimsPrincipal object containing those claims
 
+- Installing OpenApi configuration
+
+```
+dotnet add package Microsoft.OpenApi
+```
+
 #### Miscellaneous
 
 - User-secrets initialization:
@@ -143,8 +149,37 @@ dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
 dotnet user-secrets init
 ```
 
-- Place credentials into user-secrets:
+- Place local credentials into user-secrets (alternatively, place them into local appsettings.Development.json)
 
 ```
 dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Database=campusgo_dev;Username=campusgo;Password=campusgo_dev_pw"
+```
+
+- Add packages for image handling
+
+```
+dotnet add package SixLabors.ImageSharp
+```
+
+- SSH for image file transfer
+
+```
+dotnet add package SSH.NET
+```
+
+- Add user secrets for SFTP credentials (alternatively, place them into local appsettings.Development.json)
+
+```
+dotnet user-secrets set "Sftp:Host" "data.dcism.org"
+
+dotnet user-secrets set "Sftp:Port" "22074"
+
+dotnet user-secrets set "Sftp:Username" "your-sftp username"
+
+dotnet user-secrets set "Sftp:Password" "your sftp-password"
+
+dotnet user-secrets set "Sftp:RemoteDirectory" "/*server-directory/public_html/campusgo/profile-pictures"
+
+dotnet user-secrets set "Sftp:PublicBaseUrl"
+
 ```
