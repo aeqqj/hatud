@@ -1,5 +1,7 @@
+using System.Reflection.Metadata;
 using CampusGo.Web.Data;
 using CampusGo.Web.DTOs;
+using CampusGo.Web.Helpers;
 using CampusGo.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -44,11 +46,7 @@ public class VehiclesController(AppDbContext db) : ControllerBase
     [HttpPost("Vehicles")]
     public async Task<ActionResult<VehicleDto>> Create(CreateVehicleDto dto)
     {
-        var userExists = await db.Users.AnyAsync(u => u.UserId == dto.UserId);
-        if (!userExists)
-        {
-            return NotFound(new { message = "No user found with the given UserId." });
-        }
+        var userId = User.GetUserId();
 
         if (dto.Type == VehicleType.Motorcycle && dto.Capacity > 1)
         {
@@ -85,6 +83,11 @@ public class VehiclesController(AppDbContext db) : ControllerBase
         var vehicle = await db.Vehicles.FindAsync(vehicleId);
         if (vehicle is null) return NotFound();
 
+        if (vehicle.UserId != User.GetUserId())
+        {
+            return Forbid();
+        }
+
         vehicle.Type = dto.Type;
         vehicle.PlateNumber = dto.PlateNumber;
         vehicle.Model = dto.Model;
@@ -111,6 +114,11 @@ public class VehiclesController(AppDbContext db) : ControllerBase
     {
         var vehicle = await db.Vehicles.FindAsync(vehicleId);
         if (vehicle is null) return NotFound();
+
+        if (vehicle.UserId != User.GetUserId())
+        {
+            return Forbid();
+        }
 
         var hasTrips = await db.Trips.AnyAsync(t => t.VehicleId == vehicleId);
         if (hasTrips)

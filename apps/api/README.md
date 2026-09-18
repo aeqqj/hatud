@@ -118,6 +118,23 @@ dotnet ef migrations add InitialCreate
 dotnet ef database update
 ```
 
+#### JWT Integration
+
+- JWT installation
+
+```
+dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
+```
+
+- How does JWT Integration within ASP.NET Core work? Every controller inheriting from ControllerBase automatically gets a requested property of type ClaimsPrincipal — this is ASP.NET's built-in representation of whoever is making the current request, populated automatically by the authentication middleware (UseAuthentication()) before your action method ever runs. This is initialized by this code within the Program.cs
+
+- Here's the flow: when a request comes in with a JWT in its Authorization: Bearer <token> header, the JWT middleware configured by Helpers/ClaimsPrincipalExtension.cs does the following:
+
+1. Verifies the token's signature against the Jwt:Key (confirming it wasn't tampered with)
+2. Checks it hasn't expired
+3. Reads the claims baked into it — remember AuthController.GenerateToken embedded ClaimTypes.NameIdentifier, ClaimTypes.Email, and ClaimTypes.Role
+4. Populates ControllerBase.User with a ClaimsPrincipal object containing those claims
+
 #### Miscellaneous
 
 - User-secrets initialization:
