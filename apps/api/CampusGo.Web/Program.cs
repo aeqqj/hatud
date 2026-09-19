@@ -16,7 +16,11 @@ var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // Add the CORS services to the container
 builder.Services.AddCors(options =>
@@ -73,7 +77,11 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("Supabase"),
-        o => o.UseNetTopologySuite()));
+        o =>
+        {
+            o.UseNetTopologySuite();
+            o.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+        }));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
