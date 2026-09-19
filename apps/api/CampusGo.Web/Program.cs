@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using CampusGo.Web.Services;
 using Microsoft.OpenApi;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +75,13 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+});
+
 builder.Services.AddScoped<ImageUploadService>();
 builder.Services.AddScoped<NotificationService>();
 
@@ -82,6 +90,8 @@ var app = builder.Build();
 var connString = app.Configuration.GetConnectionString("Supabase");
 Console.WriteLine($"[DEBUG] Supabase connection string length: {connString?.Length ?? -1}");
 Console.WriteLine($"[DEBUG] Starts with: {connString?.Substring(0, Math.Min(10, connString?.Length ?? 0))}");
+
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -112,7 +122,6 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
-
 
 app.UseHttpsRedirection();
 
