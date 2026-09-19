@@ -24,22 +24,26 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: myAllowSpecificOrigins,
         policy =>
         {
-            policy.WithOrigins("https://scalar.com", "https://jsdelivr.net")
+            // TODO: replace with your partner's actual frontend origin(s) once known
+            // e.g. "http://localhost:3000", "https://campusgo-web.vercel.app"
+            policy.WithOrigins("http://localhost:3000")
                   .AllowAnyHeader()
                   .AllowAnyMethod();
-
-            // TIP: If you still run into issues during sandbox testing, 
-            // you can temporarily swap the above lines for:
-            // policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
         });
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-// builder.Services.AddOpenApi();
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
+        // Force HTTPS in the generated server URL, regardless of what
+        // forwarded-header detection decides at runtime
+        document.Servers = new List<OpenApiServer>
+        {
+            new() { Url = "https://campusgo-api.up.railway.app" }
+        };
+
         document.Components ??= new OpenApiComponents();
         document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
         document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
@@ -100,6 +104,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.ForwardedHeaders =
         ForwardedHeaders.XForwardedFor |
         ForwardedHeaders.XForwardedProto;
+
+    // Railway's proxy IP isn't in the default trusted list, so trust
+    // forwarded headers regardless of the immediate connection's source
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 builder.Services.AddScoped<ImageUploadService>();
@@ -107,23 +116,9 @@ builder.Services.AddScoped<NotificationService>();
 
 var app = builder.Build();
 
-var connString = app.Configuration.GetConnectionString("Supabase");
-Console.WriteLine($"[DEBUG] Supabase connection string length: {connString?.Length ?? -1}");
-Console.WriteLine($"[DEBUG] Starts with: {connString?.Substring(0, Math.Min(10, connString?.Length ?? 0))}");
-
 app.UseForwardedHeaders();
 
-// Enable CORS
 app.UseCors(myAllowSpecificOrigins);
-
-app.Use(async (context, next) =>
-{
-    Console.WriteLine($"[DEBUG] Scheme: {context.Request.Scheme}");
-    Console.WriteLine($"[DEBUG] Host: {context.Request.Host}");
-    Console.WriteLine($"[DEBUG] X-Forwarded-Proto: {context.Request.Headers["X-Forwarded-Proto"]}");
-
-    await next();
-});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -133,7 +128,6 @@ if (app.Environment.IsDevelopment())
     // Use either swagger or scalar
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "CampusGo.v1"));
     app.MapScalarApiReference().AllowAnonymous();
-
 }
 else
 {
