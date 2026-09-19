@@ -8,7 +8,7 @@ public record CreateTripDto(
     [Required, MaxLength(200)] string Origin,
     [Required, MaxLength(200)] string Destination,
     [Required] DateTime DepartureTime,
-    [Required, Range(0, 10000)] decimal Fare,
+    [Range(0, 10000)] decimal Fare,
     [Required, Range(1, 20)] int AvailableSeats
 );
 
