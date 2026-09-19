@@ -79,6 +79,10 @@ builder.Services.AddScoped<NotificationService>();
 
 var app = builder.Build();
 
+var connString = app.Configuration.GetConnectionString("Supabase");
+Console.WriteLine($"[DEBUG] Supabase connection string length: {connString?.Length ?? -1}");
+Console.WriteLine($"[DEBUG] Starts with: {connString?.Substring(0, Math.Min(10, connString?.Length ?? 0))}");
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
