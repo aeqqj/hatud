@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 
 namespace CampusGo.Web.Controllers;
 
@@ -38,7 +39,26 @@ public class AuthController(AppDbContext db, IConfiguration config) : Controller
         user.PasswordHash = Hasher.HashPassword(user, dto.Password);
 
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: "23505" })
+        {
+            // The insert may have actually succeeded on a prior retry attempt,
+            // with only the confirmation response lost to a flaky connection.
+            // Re-fetch by email (unique, and known) rather than assume failure.
+            var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (existingUser is null)
+            {
+                // A genuine, different conflict — re-throw rather than mask it
+                throw;
+            }
+
+            var recoveredToken = GenerateToken(existingUser);
+            return Ok(new AuthResponseDto(recoveredToken, existingUser.UserId.ToString(), existingUser.FullName, existingUser.Role));
+        }
 
         var token = GenerateToken(user);
         return Ok(new AuthResponseDto(token, user.UserId.ToString(), user.FullName, user.Role));
