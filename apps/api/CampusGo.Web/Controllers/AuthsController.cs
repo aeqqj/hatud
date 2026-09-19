@@ -33,7 +33,7 @@ public class AuthController(AppDbContext db, IConfiguration config) : Controller
             FullName = dto.FullName,
             Email = dto.Email,
             StudentId = dto.StudentId,
-            Role = UserRole.Rider
+            Role = dto.Role
         };
         user.PasswordHash = Hasher.HashPassword(user, dto.Password);
 
