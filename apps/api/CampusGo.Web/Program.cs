@@ -93,6 +93,15 @@ Console.WriteLine($"[DEBUG] Starts with: {connString?.Substring(0, Math.Min(10, 
 
 app.UseForwardedHeaders();
 
+app.Use(async (context, next) =>
+{
+    Console.WriteLine($"[DEBUG] Scheme: {context.Request.Scheme}");
+    Console.WriteLine($"[DEBUG] Host: {context.Request.Host}");
+    Console.WriteLine($"[DEBUG] X-Forwarded-Proto: {context.Request.Headers["X-Forwarded-Proto"]}");
+
+    await next();
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
