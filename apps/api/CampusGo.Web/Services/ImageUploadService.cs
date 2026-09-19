@@ -1,7 +1,5 @@
 using Renci.SshNet;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 namespace CampusGo.Web.Services;
 
@@ -12,16 +10,14 @@ public class ImageUploadService(IConfiguration config)
 
     public async Task<string> UploadProfilePictureAsync(Stream fileStream, Guid userId)
     {
-        using var image = await Image.LoadAsync(fileStream);
-
-        // Resize so the longer side is at most MaxDimension, preserving aspect ratio
-        image.Mutate(x => x.Resize(new ResizeOptions
+        using var original = SKBitmap.Decode(fileStream);
+        if (original is null)
         {
-            Mode = ResizeMode.Max,
-            Size = new Size(MaxDimension, MaxDimension)
-        }));
+            throw new InvalidOperationException("The uploaded file could not be decoded as an image.");
+        }
 
-        var compressed = await CompressToTargetSizeAsync(image);
+        using var resized = ResizeToMax(original, MaxDimension);
+        var compressed = CompressToTargetSize(resized);
 
         var fileName = $"{userId}.jpg";
         UploadToSftp(compressed, fileName);
@@ -30,18 +26,36 @@ public class ImageUploadService(IConfiguration config)
         return $"{baseUrl}/{fileName}";
     }
 
-    private static async Task<byte[]> CompressToTargetSizeAsync(Image image)
+    private static SKBitmap ResizeToMax(SKBitmap source, int maxDimension)
+    {
+        var scale = (double)maxDimension / Math.Max(source.Width, source.Height);
+        if (scale >= 1.0)
+        {
+            return source.Copy();
+        }
+
+        var newWidth = (int)(source.Width * scale);
+        var newHeight = (int)(source.Height * scale);
+
+        var info = new SKImageInfo(newWidth, newHeight);
+        var resized = source.Resize(info, SKSamplingOptions.Default);
+        return resized ?? source.Copy();
+    }
+
+    private static byte[] CompressToTargetSize(SKBitmap bitmap)
     {
         var quality = 85;
         byte[] result;
 
+        using var image = SKImage.FromBitmap(bitmap);
+
         do
         {
-            using var ms = new MemoryStream();
-            await image.SaveAsync(ms, new JpegEncoder { Quality = quality });
-            result = ms.ToArray();
+            using var data = image.Encode(SKEncodedImageFormat.Jpeg, quality);
+            result = data.ToArray();
             quality -= 10;
-        } while (result.Length > TargetSizeBytes && quality > 20);
+        }
+        while (result.Length > TargetSizeBytes && quality > 20);
 
         return result;
     }
