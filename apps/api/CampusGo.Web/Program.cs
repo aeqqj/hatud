@@ -11,9 +11,29 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// CORS policy name
+var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+// Add the CORS services to the container
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: myAllowSpecificOrigins,
+        policy =>
+        {
+            policy.WithOrigins("https://scalar.com", "https://jsdelivr.net")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+
+            // TIP: If you still run into issues during sandbox testing, 
+            // you can temporarily swap the above lines for:
+            // policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        });
+});
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 // builder.Services.AddOpenApi();
 builder.Services.AddOpenApi(options =>
@@ -92,6 +112,9 @@ Console.WriteLine($"[DEBUG] Supabase connection string length: {connString?.Leng
 Console.WriteLine($"[DEBUG] Starts with: {connString?.Substring(0, Math.Min(10, connString?.Length ?? 0))}");
 
 app.UseForwardedHeaders();
+
+// Enable CORS
+app.UseCors(myAllowSpecificOrigins);
 
 app.Use(async (context, next) =>
 {
