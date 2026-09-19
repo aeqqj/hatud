@@ -47,7 +47,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("Default"),
+        builder.Configuration.GetConnectionString("Supabase"),
         o => o.UseNetTopologySuite()));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

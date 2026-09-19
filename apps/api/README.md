@@ -167,19 +167,27 @@ dotnet add package SixLabors.ImageSharp
 dotnet add package SSH.NET
 ```
 
-- Add user secrets for SFTP credentials (alternatively, place them into local appsettings.Development.json)
+- Add user secrets for DCISM server image hosting with SFTP credentials (alternatively, place them into local appsettings.Development.json)
 
 ```
-dotnet user-secrets set "Sftp:Host" "data.dcism.org"
+dotnet user-secrets set "Sftp:Host" "web.dcism.org"
 
-dotnet user-secrets set "Sftp:Port" "22074"
+dotnet user-secrets set "Sftp:Port" "22077"
 
 dotnet user-secrets set "Sftp:Username" "your-sftp username"
 
 dotnet user-secrets set "Sftp:Password" "your sftp-password"
 
-dotnet user-secrets set "Sftp:RemoteDirectory" "/*server-directory/public_html/campusgo/profile-pictures"
+dotnet user-secrets set "Sftp:RemoteDirectory" "data/users/{username}/campusgo.dcism.org/profile-pictures"
 
-dotnet user-secrets set "Sftp:PublicBaseUrl"
+dotnet user-secrets set "Sftp:PublicBaseUrl" "https://campusgo.dcism.org/profile-pictures"
 
 ```
+
+- Add a separate supabase connection string list within user-secrets to host the DB
+
+```
+dotnet user-secrets set "ConnectingStrings:Supabase" "Host={host};Port=5432;Database=postgres;Username=postgres;Password={password};SSL Mode=Require;Trust Server Certificate=true"
+```
+
+- Also configure railway backend's connection strings as it hosts the ASP.NET Core backend
